@@ -1,0 +1,112 @@
+---
+title: "diskriminant"
+output: html_document
+---
+```{r}
+library(readxl)
+heart_new <- read_excel("C:/Users/lenovo/Downloads/heart_failure_clinical_records.xlsx")
+View(heart_new)
+heart_new<-as.data.frame(heart_new)
+
+```
+
+```{r}
+library(corrplot)
+corrplot(cor(heart_new[c(2,4,6,8,9,10,13)], method = "spearman"), method="number") #type="upper" eklenebilir
+
+```
+
+```{r}
+heart_new$smoking<-factor(heart_new$smoking,levels = c(1,2),labels=c("A","B"))
+summary(heart_new)
+```
+```{r}
+#Normallik
+library(funModeling)
+plot_num(heart_new)
+
+```
+```{r}
+#Univariate Normality
+#Her bir degisken için
+shapiro.test(heart_new$age)
+shapiro.test(heart_new$creatinine_phosphokinase)
+shapiro.test(heart_new$anaemia)
+shapiro.test(heart_new$diabetes)
+shapiro.test(heart_new$serum_sodium)
+shapiro.test(heart_new$ejection_fraction)
+shapiro.test(heart_new$high_blood_pressure)
+shapiro.test(heart_new$platelets)
+shapiro.test(heart_new$serum_creatinine)
+shapiro.test(heart_new$sex)
+shapiro.test(heart_new$time)
+shapiro.test(heart_new$death_event)
+```
+```{r}
+#Multivariate Normality
+library(dplyr)
+library(rstatix)
+heart_new %>% 
+  dplyr::select(!c(smoking)) %>%
+  mshapiro_test()
+
+```
+```{r}
+#Homogeneity of Covariances
+#install.packages("biotools")
+library(biotools)
+boxM(heart_new[c(2,4,6,8,9,10,13)], heart_new$smoking)
+```
+```{r}
+#Linear Discriminant Analysis - Binary-class
+library(MASS) 
+lda_heart <- lda(smoking~ serum_sodium+platelets+age+serum_creatinine, data=heart_new) 
+lda_heart
+#Y=2.15serum_sodium+5.72platelets-1.82age-6.59serum_creatinine
+```
+```{r}
+library(dplyr)
+#constant:
+cons<-apply(heart_new[c(2,8,9,10)],2, mean)
+(-cons)%*%(lda_heart$scaling)
+```
+```{r}
+#Grup tahmini yapilmasi
+lda_pred <- predict(lda_heart)
+lda_pred$class # Sinifatamalari 
+
+```
+```{r}
+#plots
+ldahist(lda_pred$x, g = heart_new$smoking)
+```
+```{r}
+#Çapraz Tablonun olusturulmasi
+tablo<-table(heart_new$smoking,lda_pred$class)
+tablo
+```
+```{r}
+#Dogru siniflanma orani
+classrate<-sum(diag(tablo))/sum(tablo)
+classrate
+```
+```{r}
+#Nispi sans kriteri p1^2+p^2
+lda_heart$prior[1]^2 + lda_heart$prior[2]^2
+```
+```{r}
+#Orjinal gruplar ile Tahmin edilen grupların karşılaştırılması
+comp<-cbind(heart_new$smoking,lda_pred$class)
+```
+
+```{r}
+##Stepwise 
+#install.packages(klaR)
+library(klaR)
+heartstep<- greedy.wilks(heart_new[,-12],heart_new[,12])
+summary(heartstep)
+heartstep$results
+
+
+```
+
